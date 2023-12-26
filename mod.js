@@ -86,6 +86,8 @@ export class Socket {
   #secureTransport;
   /** @type {Deno.Conn} */
   #socket;
+  #writer;
+  #reader;
   /** @type {boolean} */
   #startTlsCalled;
 
@@ -118,6 +120,8 @@ export class Socket {
 
       const resolve = (conn) => {
         this.#socket = conn;
+        this.#writer = conn.writable.getWriter();
+        this.#reader = conn.readable.getReader();
         return {
           remoteAddress: conn.remoteAddr,
           localAddress: conn.localAddr,
@@ -132,15 +136,28 @@ export class Socket {
       this.opened = addressOrSocket.then(Deno.startTls).then(resolve);
     }
 
-    const input = new TransformStream();
-    const output = new TransformStream();
-    this.opened.then(() => {
-      this.#socket.readable.pipeTo(input.writable);
-      output.readable.pipeTo(this.#socket.writable);
+    this.readable = new ReadableStream({
+      start: async () => {
+        await this.opened;
+      },
+      pull: async (controller) => {
+        const { value, done } = await this.#reader.read();
+        if (done) {
+          controller.close();
+        } else {
+          controller.enqueue(value);
+        }
+      },
     });
 
-    this.readable = input.readable;
-    this.writable = output.writable;
+    this.writable = new WritableStream({
+      start: async () => {
+        await this.opened;
+      },
+      write: async (chunk) => {
+        await this.#writer.write(chunk);
+      },
+    });
   }
 
   async close() {
