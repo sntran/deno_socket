@@ -96,8 +96,8 @@ export class Socket {
    * @param {SocketOptions} [options]
    */
   constructor(addressOrSocket, options) {
-    this.allowHalfOpen = options?.allowHalfOpen ?? true;
-    this.secureTransport = options?.secureTransport ?? "off";
+    this.#allowHalfOpen = options?.allowHalfOpen ?? false;
+    this.#secureTransport = options?.secureTransport ?? "off";
 
     this.closed = new Promise((resolve, reject) => {
       this.#closedResolve = (...args) => {
@@ -115,13 +115,19 @@ export class Socket {
       const connectOptions = {
         hostname: addressOrSocket.hostname,
         port: addressOrSocket.port,
-        // allowHalfOpen: this.allowHalfOpen,
       };
 
       const resolve = (conn) => {
         this.#socket = conn;
         this.#writer = conn.writable.getWriter();
         this.#reader = conn.readable.getReader();
+
+        this.#reader.closed.then(() => {
+          if (!this.#allowHalfOpen) {
+            this.close();
+          }
+        });
+
         return {
           remoteAddress: conn.remoteAddr,
           localAddress: conn.localAddr,
