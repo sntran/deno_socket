@@ -166,6 +166,10 @@ export class Socket {
     });
   }
 
+  /**
+   * Closes the socket
+   * @returns {Promise<void>}
+   */
   async close() {
     await this.opened;
     try {
@@ -185,10 +189,10 @@ export class Socket {
    */
   startTls() {
     if (this.#secureTransport !== "starttls") {
-      throw new SocketError("secureTransport must be set to 'starttls'");
+      throw new Error("secureTransport must be set to 'starttls'");
     }
     if (this.#startTlsCalled) {
-      throw new SocketError("can only call startTls once");
+      throw new Error("can only call startTls once");
     } else {
       this.#startTlsCalled = true;
     }
@@ -208,15 +212,6 @@ function isSocketAddress(address) {
     Object.hasOwn(address, "hostname") &&
     Object.hasOwn(address, "port")
   );
-}
-
-export class SocketError extends TypeError {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
-    super(`SocketError: ${message}`);
-  }
 }
 
 // Learn more at https://deno.land/manual/examples/module_metadata#concepts
